@@ -1,9 +1,11 @@
+from statistics import mode
+
 import cv2
 import mediapipe as mp
 import pyttsx3
 
-from hand.Hand import *
 from WriteHandler import *
+from hand.Hand import *
 from settings.Settings import *
 
 
@@ -37,8 +39,10 @@ class AirBraille(object):
         """
         self.show_gui = show_gui
         self.cap = cv2.VideoCapture(0)  # init webcam input
-        self.images_count = 0
-        self.writer = write_handler  # setup writehandler
+        self.images_count = 0  # setup image count
+        self.writer = write_handler  # setup write-handler
+        self.frame_results = []  # the frame result buffer
+        self.previous_res = self.EMPTY_STR
         self.__clear_hand_pairs()
         self.tts = pyttsx3.init()  # init text to speech
 
@@ -54,10 +58,18 @@ class AirBraille(object):
     def __clear_hand_pairs(self):
         """
         Clears the hand pair results. Resets image count.
-        :return:
+        :return: void.
         """
         self.hand_pairs_res = dict()
         self.images_count = 0
+
+    def __drop_oldest_frame(self):
+        """
+        Removes the oldest frame from the 'buffer'
+        :return: void.
+        """
+        self.frame_results.pop(0)
+        self.images_count = self.images_count - 1
 
     def _set_hands_state(self, val: bool):
         """
@@ -92,10 +104,14 @@ class AirBraille(object):
         :return: void.
         """
         self.images_count += 1
-        if result in self.hand_pairs_res:
-            self.hand_pairs_res[result] += 1
+
+        if Settings.CONFIRM_INPUT:
+            if result in self.hand_pairs_res:
+                self.hand_pairs_res[result] += 1
+            else:
+                self.hand_pairs_res[result] = 1
         else:
-            self.hand_pairs_res[result] = 1
+            self.frame_results.append(result)
 
         if self.images_count > Settings.THRESHOLD:
             self.type()
@@ -109,9 +125,6 @@ class AirBraille(object):
         :param most_likely_key: The most often occurred braille pattern.
         :return: void.
         """
-        if not Settings.INVERT:
-            print(most_likely_key)
-
         if self.THUMB_LEFT in most_likely_key and self.THUMB_RIGHT in most_likely_key:
             self._write_and_speak(most_likely_key)
         elif not (self.THUMB_LEFT in most_likely_key) and not (self.THUMB_RIGHT in most_likely_key):
@@ -122,14 +135,25 @@ class AirBraille(object):
 
         return
 
-    def _continuous_input(self, most_likely_key: str):
+    def _continuous_input(self, frame_results):
         """
-        Mode: Continuous input. Every ten frames an evaluation starts and the result is returned.
-        :param most_likely_key: The most often occurred braille pattern.
-        :return:
+        Mode: Continuous input. All ten frames are evaluated.
+        In case of a change to the previous printed result, the new result will
+        be returned.
+        :param frame_results: A list of all frame' results.
+        :return: void.
         """
         # TODO: handle user settings access
-        self._write_and_speak(most_likely_key)
+
+        # get the key, that occurs the most
+        most_likely_key = mode(frame_results)
+
+        if most_likely_key != self.previous_res:
+            self.previous_res = most_likely_key
+            self._write_and_speak(most_likely_key)
+
+        # remove the oldest frame's result
+        self.__drop_oldest_frame()
 
     def _hotkey(self, most_likely_key: str):
         # TODO: user wants to access a hotkey
@@ -175,10 +199,9 @@ class AirBraille(object):
 
         if Settings.CONFIRM_INPUT:
             self._input_confirm(most_likely_key)
+            self.__clear_hand_pairs()
         else:
-            self._continuous_input(most_likely_key)
-
-        self.__clear_hand_pairs()
+            self._continuous_input(self.frame_results)
 
         return
 

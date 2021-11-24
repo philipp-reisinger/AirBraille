@@ -9,9 +9,9 @@ class Settings(object):
 
     # modes:
     CONFIRM_INPUT: bool = True
-    INVERT: bool = True
+    INVERT: bool = False
 
-    THRESHOLD: int = 10  # number of images that are collected in one take
+    THRESHOLD: int = 10  # number of images, that are collected in one take
     ANGLE: int = 120  # the angle, at which the finger is stretched or not
 
     # finger is braille point:

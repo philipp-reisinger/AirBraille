@@ -1,6 +1,6 @@
 # AirBraille
 
-AirBraille is a prototype written in Python that aims to provide an alternative way to input Braille on a computer by using a camera that focuses the suer's hands and evaluates the position of the fingers.
+AirBraille is a prototype written in Python that aims to provide an alternative way to input Braille on a computer by using a camera that focuses the user's hands and evaluates the position of the fingers.
 
 ## Usage
 ```python
